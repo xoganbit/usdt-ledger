@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Леджер USDT/RUB</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    box-sizing: border-box;
+    --bg: #101A17;
+    --surface: #16221D;
+    --surface-2: #1C2B24;
+    --border: #2A3A33;
+    --text: #E9EDE8;
+    --text-dim: #93A69B;
+    --buy: #4FA87C;
+    --buy-bg: rgba(79,168,124,0.14);
+    --sell: #C97B4A;
+    --sell-bg: rgba(201,123,74,0.14);
+    --accent: #D7B369;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #F6F4EF;
+      --surface: #FFFFFF;
+      --surface-2: #EFEBE2;
+      --border: #DEDACD;
+      --text: #1B241F;
+      --text-dim: #6B7A70;
+      --buy: #2E8B57;
+      --buy-bg: rgba(46,139,87,0.10);
+      --sell: #B15E2A;
+      --sell-bg: rgba(177,94,42,0.10);
+      --accent: #A8823C;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #F6F4EF; --surface: #FFFFFF; --surface-2: #EFEBE2; --border: #DEDACD;
+    --text: #1B241F; --text-dim: #6B7A70; --buy: #2E8B57; --buy-bg: rgba(46,139,87,0.10);
+    --sell: #B15E2A; --sell-bg: rgba(177,94,42,0.10); --accent: #A8823C;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); height: 100%; }
+  body {
+    height: 100%; margin: 0; background: var(--bg); color: var(--text);
+    font-family: 'Inter', -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 20px 16px 40px; }
+  h1 {
+    font-family: 'Fraunces', serif; font-weight: 600; font-size: 26px;
+    margin: 4px 0 18px; letter-spacing: -0.01em;
+  }
+  .balances { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+  .bcard {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 14px 16px;
+  }
+  .bcard .label { font-size: 12.5px; color: var(--text-dim); margin-bottom: 6px; }
+  .bcard .value { font-family: 'Inter', sans-serif; font-variant-numeric: tabular-nums; font-weight: 700; font-size: 20px; }
+  .pos { color: var(--buy); } .neg { color: var(--sell); }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+  .card h2 { font-family: 'Fraunces', serif; font-weight: 600; font-size: 17px; margin: 0 0 14px; }
+
+  .seg { display: flex; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 12px; }
+  .seg button { flex: 1; padding: 10px; border: none; background: var(--surface-2); color: var(--text-dim); font-weight: 600; font-size: 14px; cursor: pointer; }
+  .seg button.active[data-type="buy"] { background: var(--buy-bg); color: var(--buy); }
+  .seg button.active[data-type="sell"] { background: var(--sell-bg); color: var(--sell); }
+
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 12.5px; color: var(--text-dim); margin-bottom: 5px; }
+  .field input, .field textarea {
+    width: 100%; padding: 10px 12px; border-radius: 9px; border: 1px solid var(--border);
+    background: var(--surface-2); color: var(--text); font-size: 15px; font-family: inherit;
+  }
+  .field input:focus, .field textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .rate-hint { font-size: 12.5px; color: var(--text-dim); margin-top: -6px; margin-bottom: 12px; font-variant-numeric: tabular-nums; }
+
+  .btn { width: 100%; padding: 12px; border-radius: 10px; border: none; background: var(--accent); color: #1B1408; font-weight: 700; font-size: 15px; cursor: pointer; }
+  .btn:active { opacity: 0.85; }
+
+  .deal { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .deal:last-child { border-bottom: none; }
+  .deal .tag { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 6px; }
+  .deal .tag.buy { background: var(--buy-bg); color: var(--buy); }
+  .deal .tag.sell { background: var(--sell-bg); color: var(--sell); }
+  .deal .meta { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
+  .deal .amounts { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .deal .amounts .usdt { font-weight: 700; }
+  .deal .amounts .rub { font-size: 13px; color: var(--text-dim); }
+  .deal .del { background: none; border: none; color: var(--text-dim); font-size: 18px; cursor: pointer; padding: 2px 4px; margin-left: 4px; }
+  .empty { color: var(--text-dim); font-size: 14px; text-align: center; padding: 20px 0; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+  th { color: var(--text-dim); font-weight: 600; font-size: 12px; }
+  td:last-child, th:last-child { text-align: right; }
+  .tablewrap { overflow-x: auto; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Леджер USDT / RUB</h1>
+
+  <div class="balances">
+    <div class="bcard"><div class="label">Баланс USDT</div><div class="value" id="balUsdt">0</div></div>
+    <div class="bcard"><div class="label">Денежный поток ₽</div><div class="value" id="balRub">0</div></div>
+  </div>
+
+  <div class="card">
+    <h2>Новая сделка</h2>
+    <div class="seg">
+      <button data-type="buy" class="active" onclick="setType('buy')">Покупка</button>
+      <button data-type="sell" onclick="setType('sell')">Продажа</button>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Сумма USDT</label><input type="number" inputmode="decimal" id="fUsdt" placeholder="0"></div>
+      <div class="field"><label>Сумма ₽</label><input type="number" inputmode="decimal" id="fRub" placeholder="0"></div>
+    </div>
+    <div class="rate-hint" id="rateHint">Курс: —</div>
+    <div class="row2">
+      <div class="field"><label>Дата</label><input type="date" id="fDate"></div>
+      <div class="field"><label>Клиент</label><input type="text" id="fClient" placeholder="Имя клиента" list="clientsList"><datalist id="clientsList"></datalist></div>
+    </div>
+    <div class="field"><label>Примечание</label><textarea id="fNote" rows="2" placeholder="Необязательно"></textarea></div>
+    <button class="btn" onclick="addDeal()">Добавить сделку</button>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <h2 style="margin:0">Сделки</h2>
+      <select id="sortSel" onchange="render()" style="background:var(--surface-2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 8px;font-size:13px">
+        <option value="date_desc">Дата ↓</option>
+        <option value="date_asc">Дата ↑</option>
+        <option value="usdt_desc">USDT ↓</option>
+        <option value="usdt_asc">USDT ↑</option>
+        <option value="client">Клиент А-Я</option>
+      </select>
+    </div>
+    <div id="dealsList"></div>
+  </div>
+
+  <div class="card">
+    <h2>Синк с Google Таблицей</h2>
+    <div class="field"><label>URL веб-приложения Apps Script</label><input type="text" id="fSheetUrl" placeholder="https://script.google.com/macros/s/.../exec"></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn" style="background:var(--surface-2);color:var(--text)" onclick="pullFromSheet()">Загрузить</button>
+      <button class="btn" onclick="pushAllToSheet()">Отправить всё</button>
+    </div>
+    <div class="rate-hint" id="syncStatus" style="margin-top:8px">Статус: не настроено</div>
+  </div>
+
+  <div class="card">
+    <h2>По клиентам</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Клиент</th><th>Сделок</th><th>USDT</th><th>₽ поток</th></tr></thead>
+        <tbody id="clientsTable"></tbody>
+      </table>
+    </div>
+  <div class="card">
+    <h2>Итоги по месяцам</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Месяц</th><th>Продано USDT</th><th>Прибыль ₽</th><th>Остаток USDT</th></tr></thead>
+        <tbody id="monthsTable"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+let curType = 'buy';
+let deals = [];
+try {
+  deals = JSON.parse(localStorage.getItem('usdt_ledger_deals') || '[]');
+} catch (e) { deals = []; }
+
+// Telegram Mini App init
+if (window.Telegram && window.Telegram.WebApp) {
+  const tg = window.Telegram.WebApp;
+  tg.ready();
+  tg.expand();
+  if (tg.colorScheme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+}
+
+// Google Sheets sync via Apps Script
+const savedUrl = localStorage.getItem('usdt_ledger_sheet_url') || '';
+document.getElementById('fSheetUrl').value = savedUrl;
+document.getElementById('fSheetUrl').addEventListener('change', e => {
+  localStorage.setItem('usdt_ledger_sheet_url', e.target.value.trim());
+});
+
+function sheetUrl() { return document.getElementById('fSheetUrl').value.trim(); }
+function setSyncStatus(t) { document.getElementById('syncStatus').textContent = 'Статус: ' + t; }
+
+async function pullFromSheet() {
+  const url = sheetUrl();
+  if (!url) { setSyncStatus('укажите URL'); return; }
+  setSyncStatus('загрузка...');
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    if (Array.isArray(data)) {
+      deals = data;
+      save();
+      render();
+      setSyncStatus('загружено ' + data.length + ' сделок');
+    } else {
+      setSyncStatus('неверный формат ответа');
+    }
+  } catch (e) { setSyncStatus('ошибка загрузки'); }
+}
+
+async function pushAllToSheet() {
+  const url = sheetUrl();
+  if (!url) { setSyncStatus('укажите URL'); return; }
+  setSyncStatus('отправка...');
+  try {
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'replaceAll', deals })
+    });
+    setSyncStatus('отправлено ' + deals.length + ' сделок');
+  } catch (e) { setSyncStatus('ошибка отправки'); }
+}
+
+async function pushOneToSheet(deal) {
+  const url = sheetUrl();
+  if (!url) return;
+  try {
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'add', deal })
+    });
+  } catch (e) {}
+}
+
+const fmt = n => new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(n);
+
+function save() {
+  try { localStorage.setItem('usdt_ledger_deals', JSON.stringify(deals)); } catch (e) {}
+}
+
+function setType(t) {
+  curType = t;
+  document.querySelectorAll('.seg button').forEach(b => b.classList.toggle('active', b.dataset.type === t));
+}
+
+function updateRateHint() {
+  const u = parseFloat(document.getElementById('fUsdt').value);
+  const r = parseFloat(document.getElementById('fRub').value);
+  const hint = document.getElementById('rateHint');
+  if (u > 0 && r > 0) hint.textContent = 'Курс: ' + fmt(r / u) + ' ₽ за USDT';
+  else hint.textContent = 'Курс: —';
+}
+document.getElementById('fUsdt').addEventListener('input', updateRateHint);
+document.getElementById('fRub').addEventListener('input', updateRateHint);
+document.getElementById('fDate').valueAsDate = new Date();
+
+function addDeal() {
+  const usdt = parseFloat(document.getElementById('fUsdt').value);
+  const rub = parseFloat(document.getElementById('fRub').value);
+  const date = document.getElementById('fDate').value;
+  const client = document.getElementById('fClient').value.trim();
+  const note = document.getElementById('fNote').value.trim();
+  if (!usdt || !rub || !date || !client) {
+    alert('Заполните сумму USDT, сумму ₽, дату и клиента');
+    return;
+  }
+  const deal = { id: Date.now(), type: curType, usdt, rub, date, client, note };
+  deals.unshift(deal);
+  save();
+  pushOneToSheet(deal);
+  document.getElementById('fUsdt').value = '';
+  document.getElementById('fRub').value = '';
+  document.getElementById('fClient').value = '';
+  document.getElementById('fNote').value = '';
+  updateRateHint();
+  render();
+}
+
+function delDeal(id) {
+  deals = deals.filter(d => d.id !== id);
+  save();
+  render();
+}
+
+function render() {
+  // balances
+  let usdtBal = 0, rubFlow = 0;
+  const byClient = {};
+  deals.forEach(d => {
+    const sign = d.type === 'buy' ? 1 : -1;
+    usdtBal += sign * d.usdt;
+    rubFlow += -sign * d.rub; // buy = cash out, sell = cash in
+    if (!byClient[d.client]) byClient[d.client] = { count: 0, usdt: 0, rub: 0 };
+    byClient[d.client].count++;
+    byClient[d.client].usdt += sign * d.usdt;
+    byClient[d.client].rub += -sign * d.rub;
+  });
+  const balUsdtEl = document.getElementById('balUsdt');
+  balUsdtEl.textContent = fmt(usdtBal) + ' USDT';
+  balUsdtEl.className = 'value ' + (usdtBal >= 0 ? 'pos' : 'neg');
+  const balRubEl = document.getElementById('balRub');
+  balRubEl.textContent = (rubFlow >= 0 ? '+' : '') + fmt(rubFlow) + ' ₽';
+  balRubEl.className = 'value ' + (rubFlow >= 0 ? 'pos' : 'neg');
+
+  // deals list
+  const list = document.getElementById('dealsList');
+  const sortBy = document.getElementById('sortSel').value;
+  const sorted = [...deals].sort((a, b) => {
+    if (sortBy === 'date_desc') return b.date.localeCompare(a.date) || b.id - a.id;
+    if (sortBy === 'date_asc') return a.date.localeCompare(b.date) || a.id - b.id;
+    if (sortBy === 'usdt_desc') return b.usdt - a.usdt;
+    if (sortBy === 'usdt_asc') return a.usdt - b.usdt;
+    if (sortBy === 'client') return a.client.localeCompare(b.client, 'ru');
+    return 0;
+  });
+  if (!deals.length) {
+    list.innerHTML = '<div class="empty">Пока нет сделок — добавьте первую выше</div>';
+  } else {
+    list.innerHTML = sorted.map(d => `
+      <div class="deal">
+        <div>
+          <span class="tag ${d.type}">${d.type === 'buy' ? 'Покупка' : 'Продажа'}</span>
+          <div class="meta">${d.client} · ${d.date}${d.note ? ' · ' + escapeHtml(d.note) : ''}</div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:6px">
+          <div class="amounts">
+            <div class="usdt">${fmt(d.usdt)} USDT</div>
+            <div class="rub">${fmt(d.rub)} ₽</div>
+          </div>
+          <button class="del" onclick="delDeal(${d.id})" aria-label="Удалить">×</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // clients table
+  const tbody = document.getElementById('clientsTable');
+  const names = Object.keys(byClient).sort((a,b) => byClient[b].count - byClient[a].count);
+  if (!names.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-dim)">Нет данных</td></tr>';
+  } else {
+    tbody.innerHTML = names.map(n => {
+      const c = byClient[n];
+      return `<tr><td>${escapeHtml(n)}</td><td>${c.count}</td><td>${fmt(c.usdt)}</td><td>${(c.rub>=0?'+':'')+fmt(c.rub)} ₽</td></tr>`;
+    }).join('');
+  }
+
+  // client autocomplete
+  document.getElementById('clientsList').innerHTML = names.map(n => `<option value="${escapeHtml(n)}">`).join('');
+
+  // monthly summary
+  const byMonth = {};
+  [...deals].sort((a, b) => a.date.localeCompare(b.date)).forEach(d => {
+    const m = d.date.slice(0, 7); // YYYY-MM
+    if (!byMonth[m]) byMonth[m] = { soldUsdt: 0, netRub: 0 };
+    const sign = d.type === 'buy' ? 1 : -1;
+    if (d.type === 'sell') byMonth[m].soldUsdt += d.usdt;
+    byMonth[m].netRub += -sign * d.rub;
+  });
+  const months = Object.keys(byMonth).sort();
+  let running = 0;
+  const monthRows = months.map(m => {
+    const dealsBeforeEnd = deals.filter(d => d.date.slice(0, 7) <= m);
+    running = dealsBeforeEnd.reduce((s, d) => s + (d.type === 'buy' ? d.usdt : -d.usdt), 0);
+    return { m, soldUsdt: byMonth[m].soldUsdt, netRub: byMonth[m].netRub, balance: running };
+  }).reverse();
+  const monthsBody = document.getElementById('monthsTable');
+  if (!monthRows.length) {
+    monthsBody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-dim)">Нет данных</td></tr>';
+  } else {
+    monthsBody.innerHTML = monthRows.map(r => {
+      const [y, mm] = r.m.split('-');
+      const label = new Date(y, mm - 1, 1).toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+      return `<tr><td>${label}</td><td>${fmt(r.soldUsdt)}</td><td>${(r.netRub>=0?'+':'')+fmt(r.netRub)} ₽</td><td>${fmt(r.balance)}</td></tr>`;
+    }).join('');
+  }
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+render();
+</script>
+</body>
+</html>
