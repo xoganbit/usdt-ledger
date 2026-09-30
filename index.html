@@ -226,10 +226,11 @@ async function pushAllToSheet() {
   try {
     await fetch(url, {
       method: 'POST',
+      mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ action: 'replaceAll', deals })
     });
-    setSyncStatus('отправлено ' + deals.length + ' сделок');
+    setSyncStatus('отправлено ' + deals.length + ' сделок (проверьте в таблице)');
   } catch (e) { setSyncStatus('ошибка отправки'); }
 }
 
@@ -239,6 +240,7 @@ async function pushOneToSheet(deal) {
   try {
     await fetch(url, {
       method: 'POST',
+      mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ action: 'add', deal })
     });
